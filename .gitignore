@@ -1,1 +1,16 @@
+# objects
 k_transpose
+*.o
+*.a
+*.so
+
+# ???
+_obj
+_test
+
+# wow you blew it
+*.core
+
+# vim BS files
+*.swp
+*.swo
