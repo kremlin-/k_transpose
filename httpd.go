@@ -5,14 +5,14 @@ import(
     "os"
 
     "io"
-//    "io/ioutil"
+    "io/ioutil"
     "bufio"
 
     "strings"
     "strconv"
-    "text/scanner"
 
     "net/http"
+	"net/url"
 
     "github.com/wsxiaoys/terminal/color"
 )
@@ -173,7 +173,11 @@ func parseColors(colorfile *os.File) (pal ktPalette, err error) {
     return ret, e.err
 }
 
+var httpdStatus bool
+
 func ktInit(dirPrepend string, port int, colorfilePath string) error {
+
+    httpdStatus = false
 
     color.Print("@yparsing colorfile :: @{|}")
     file, err := os.Open(colorfilePath)
@@ -215,22 +219,132 @@ func ktInit(dirPrepend string, port int, colorfilePath string) error {
 
 func transposePage(writer http.ResponseWriter, req *http.Request) {
 
+    if !httpdStatus {
+
+        httpdStatus = true
+        color.Printf("@g[%s]@{|}\n", checkM)
+    }
+
+    if req.URL.Path == "/kt/" {
+        writer.Write([]byte("wtf"))
+       return
+    }
+
     fqdn      := req.URL.Path[4:]
     targetURL := fmt.Sprintf("http://%s", fqdn)
 
     resp, err := http.Get(targetURL)
-    if err != nil {
+
+    if err != nil || resp.StatusCode != 200 {
 
         io.WriteString(writer, "failed to get that page! -kt\n")
-        io.WriteString(writer, targetURL)
+        io.WriteString(writer, targetURL + "\n")
+
+        io.WriteString(writer, resp.Status)
         return
     }
 
-    var s scanner.Scanner
-    s.Init(req.Body)
-    //tok := s.Scan
+	conType := resp.Header.Get("Content-Type")
+
+    switch conType[0:strings.Index(conType, ";")] {
+
+        case "text/html":
+            writer.Write(transposeHTML(bufio.NewScanner(resp.Body), fqdn))
+
+        case "text/css":
+            writer.Write(transposeCSS(bufio.NewScanner(resp.Body), fqdn))
+
+        default:
+            page, _ := ioutil.ReadAll(resp.Body)
+            writer.Write(page)
+    }
 
     resp.Body.Close()
+}
+
+/* swap href="" & src="" */
+func transposeHTML(scan *bufio.Scanner, fqdn string) []byte {
+
+    var ret []byte
+	var i int
+
+	scan.Split(bufio.ScanWords)
+	for scan.Scan() {
+
+		i++
+		cur := scan.Text()
+
+		//fmt.Printf("%s\n", cur)
+
+		if len(cur) < 7 {
+
+
+		} else if(cur[0:6] == "href=\\") {
+
+			urlStr := cur[7:strings.Index(cur[7:], "\\") + 7]
+
+			u, err := url.Parse(urlStr)
+			if err != nil {
+				fmt.Printf("malformed URL: %s\n", urlStr)
+			}
+
+			if u.Host == "" {
+
+				u.Host = fmt.Sprintf("localhost/kt/%s", fqdn)
+//				cur = append(cur[0:6], 
+			}
+
+			fmt.Printf("[F] URL: %s // PATH: %s\n", u.Host, u.Path)
+			if u == u {}
+
+
+		} else if(cur[0:5] == "href=") {
+
+			urlStr := cur[6:strings.Index(cur[6:], "\"") + 6]
+
+			u, err := url.Parse(urlStr)
+			if err != nil {
+				fmt.Printf("malformed URL: %s\n", urlStr)
+			}
+
+			if u == u {}
+			fmt.Printf("URL: %s // PATH: %s\n", u.Host, u.Path)
+
+		} else if(cur[0:5] == "src=\"") {
+
+			//fmt.Printf("%s\n", cur)
+			urlStr := cur[5:strings.Index(cur[5:], "\"") + 5]
+
+			u, err := url.Parse(urlStr)
+			if err != nil {
+				fmt.Printf("malformed URL: %s\n", urlStr)
+			}
+
+			if u.Host == "" {
+
+				u.Host = fmt.Sprintf("localhost/kt/%s", fqdn)
+//				cur = append(cur[0:6], 
+
+			fmt.Printf("[S] URL: %s // PATH: %s\n", u.Host, u.Path)
+			if u == u {}
+			}
+
+		}
+
+		ret = append(ret, byte(' '))
+		ret = append(ret, cur...)
+	}
+
+	fmt.Printf("%d\n", i)
+
+    return ret
+}
+
+func transposeCSS(scan *bufio.Scanner, fqdn string) []byte {
+
+    var ret []byte
+
+    return ret
 }
 
 func main() {
