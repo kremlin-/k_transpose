@@ -4,9 +4,13 @@ import(
     "fmt"
     "os"
 
+    "io"
+//    "io/ioutil"
+    "bufio"
+
     "strings"
     "strconv"
-    "bufio"
+    "text/scanner"
 
     "net/http"
 
@@ -189,18 +193,49 @@ func ktInit(dirPrepend string, port int, colorfilePath string) error {
 
     if pal == ansiColors {}
 
-    color.Printf("@ystarting httpd on port @b%d@{|} :: ", port)
+    color.Printf("@yverifying & preprocessing colorsets@{|} :: @y[SKIP]\n")
+    color.Printf("@ygenerating transpositional colorspace@{|} :: @y[SKIP]\n")
 
+    color.Printf("@ystarting httpd on port @b%d@{|} :: ", port)
+    http.HandleFunc("/kt/", transposePage)
+
+    var portString string
+    fmt.Sprintf(portString, ":%d", port)
+    err = http.ListenAndServe(portString, nil)
+    if err != nil {
+
+        color.Printf("@r[%s]@{-} - run me as root!\n", xM)
+        return fmt.Errorf("%s\n", "failed to start httpd")
+    }
+
+    color.Printf("@g[%s]@{-}\n", checkM)
 
     return nil
+}
+
+func transposePage(writer http.ResponseWriter, req *http.Request) {
+
+    fqdn      := req.URL.Path[4:]
+    targetURL := fmt.Sprintf("http://%s", fqdn)
+
+    resp, err := http.Get(targetURL)
+    if err != nil {
+
+        io.WriteString(writer, "failed to get that page! -kt\n")
+        io.WriteString(writer, targetURL)
+        return
+    }
+
+    var s scanner.Scanner
+    s.Init(req.Body)
+    //tok := s.Scan
+
+    resp.Body.Close()
 }
 
 func main() {
 
     err := ktInit("kolors", 999, "/home/kremlin/.Xresources")
-
-    /* make sure to close() anything you need to (you need to) */
-    _, err = http.Get("http://kremlin.cc")
 
     if err != nil {}
 }
