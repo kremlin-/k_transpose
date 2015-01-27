@@ -10,12 +10,6 @@ terminal colors are read from ~/.Xresources in the form 'URxvt\*color[0-16]:#RRG
 ##colorspace transposition
 TODO
 
-### compilation/installation
-```
-make
-sudo make install
-```
-
 ### running
 ```
 # you likely need root to bind httpds to a local port
